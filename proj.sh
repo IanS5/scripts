@@ -16,9 +16,14 @@ done
 
 _usage() {
     echo "USAGE:"
-    echo "$CALL_NAME <project / template> [ <create / remove> <name> ]"
-    echo "$CALL_NAME backup [ <project / template> [ name ] ]"
-    echo "$CALL_NAME remote-install <server>"
+    printf "\t$CALL_NAME SUBCOMMAND [ARGS...]\n"
+    echo "SUBCOMMANDS:"
+    printf "\tbackup [project|template NAME]\n"
+    printf "\t\tbackup the project or template 'NAME', if the project/template is not specified then backup everything\n"
+    printf "\tproject create|remove NAME [TEMPLATE]\n"
+    printf "\t\tcreate or remove a project 'NAME', if the project is being created base it on 'TEMPLATE'\n"
+    printf "\ttemplate create|remove NAME\n"
+    printf "\t\tcreate or remove a template 'NAME'\n"
 }
 
 backup() {
