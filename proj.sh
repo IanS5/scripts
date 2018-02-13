@@ -112,7 +112,7 @@ project-create() {
     export TEMPLATE=$template
     export PROJECT=$name
     
-    ./PROJINIT
+    sh ./PROJINIT
     init_rc=$?
     
     unset TEMPLATE
