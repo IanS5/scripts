@@ -4,7 +4,7 @@ CALL_NAME="$0"
 ARGS=("$@")
 
 _usage() {
-    echo "USAGE: $CALL_NAME [-h] [-l] [-r] SOURCE TARGET\n"
+    printf "USAGE: $CALL_NAME [-h] [-l] [-r] SOURCE TARGET\n"
     printf "\tsync the contents of TARGET with SOURCE, the connection is one way.\n"
 	printf "OPTIONS:\n"
     printf "\t-h: print this message and exit\n"
