@@ -100,13 +100,17 @@ project-create() {
         template="scratch"
     fi
 
-    if [[ ! -d $PROJ_BASE_DIR/templates/"$template" ]]; then
+    if [[ -d $PROJ_BASE_DIR/templates/"$template" ]]; then
+        template_dir=$PROJ_BASE_DIR/templates/"$template"
+    elif [[ -d /etc/proj/templates/"$template" ]]; then
+        template_dir=/etc/proj/templates/"$template"
+    else
         echo "no template named 'scratch'"
         echo "do \"$CALL_NAME template create $template\" to create it" 
         exit 1
     fi
 
-    cp -frp "$PROJ_BASE_DIR/templates/$template" "$PROJ_BASE_DIR/projects/$name"
+    cp -frp $template_dir "$PROJ_BASE_DIR/projects/$name"
     
     pushd "$PROJ_BASE_DIR/projects/$name" > /dev/null
     export TEMPLATE=$template
@@ -147,7 +151,7 @@ EOF
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
-        project "$2" "$3";;
+        project "$2" "$3" "$4";;
     t | te | tem | temp | templa | templat | template)
         template "$2" "$3";;
     b | ba | bac | back | backu | backup)
