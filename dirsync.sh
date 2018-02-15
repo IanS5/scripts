@@ -59,17 +59,17 @@ while true; do
 	IFS=', ' read -r -a events <<< "${event_file[0]}"
 	file="${event_file[1]}"
 	path="${event_file[2]}"
-
+	echo "$event"
 	for event in $events; do
 		case "$event" in
-			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB")
+			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB" | "MOVE_FROM")
 				if [[ -d $path/$file ]]; then 
 					mkdir -p "${path//$SOURCE/$TARGET}/$file";
 				else
 					`$CP_COMMAND "$path/$file" "${path//$SOURCE/$TARGET}/$file"`
 				fi
 				;;
-			"DELETE" | "MOVE_FROM")
+			"DELETE")
 				rm  -rf "$TARGET/$file"
 				;;
 		esac
