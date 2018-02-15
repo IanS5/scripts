@@ -59,7 +59,6 @@ while true; do
 	IFS=', ' read -r -a events <<< "${event_file[0]}"
 	file="${event_file[1]}"
 	path="${event_file[2]}"
-	echo "$event"
 	for event in $events; do
 		case "$event" in
 			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB" | "MOVE_FROM")
