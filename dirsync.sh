@@ -67,14 +67,14 @@ while true; do
 			echo "$event: $path/$file"
 		fi
 		case "$event" in
-			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB" | "MOVE_FROM")
+			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB")
 				if [[ -d $path/$file ]]; then 
-					mkdir -p "${path//$SOURCE/$TARGET}/$file";
+					mkdir -p "${path//"$SOURCE"/$TARGET}/$file";
 				else
-					`$CP_COMMAND "$path/$file" "${path//$SOURCE/$TARGET}/$file"`
+					`$CP_COMMAND "$path/$file" "${path//"$SOURCE"/$TARGET}/$file"`
 				fi
 				;;
-			"DELETE")
+			"DELETE" | "MOVE_FROM")
 				rm  -rf "$TARGET/$file"
 				;;
 		esac
