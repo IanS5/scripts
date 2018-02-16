@@ -47,7 +47,7 @@ if [ -z "$LINKS" ]; then
 	CP_COMMAND='cp -p'
 	WAIT_COMMAND="$WAIT_COMMAND -e close_write -e attrib -e modify"
 else
-	CP_COMMAND='ln '
+	CP_COMMAND='cp -pl'
 fi
 
 
@@ -63,20 +63,23 @@ while true; do
 	file="${event_file[1]}"
 	path="${event_file[2]}"
 	for event in $events; do
+		source_file="$path$file"
+		target_file="${source_file//"$SOURCE"/$TARGET}"
 		if [ -n "$VERBOSE" ]; then
-			echo "$event: $path/$file"
+			echo "$event: $source_file => $target_file"
 		fi
 		case "$event" in
-			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB")
-				if [[ -d $path/$file ]]; then 
-					mkdir -p "${path//"$SOURCE"/$TARGET}/$file";
+			"CREATE" | "MOVED_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB")
+				if [[ -d $source_file ]]; then 
+					mkdir -p "$target_file"
 				else
-					`$CP_COMMAND "$path/$file" "${path//"$SOURCE"/$TARGET}/$file"`
+					$CP_COMMAND "$source_file" "$target_file"
 				fi
 				;;
-			"DELETE" | "MOVE_FROM")
-				rm  -rf "$TARGET/$file"
+			"DELETE" | "MOVED_FROM")
+				rm  -rf "$target_file"
 				;;
+			*) if [ -n "$VERBOSE" ]; then echo "unkown event"; fi;;
 		esac
 	done
 done
