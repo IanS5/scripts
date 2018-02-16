@@ -4,12 +4,13 @@ CALL_NAME="$0"
 ARGS=("$@")
 
 _usage() {
-    printf "USAGE: $CALL_NAME [-h] [-l] [-r] SOURCE TARGET\n"
+    printf "USAGE: $CALL_NAME [-h] [-l] [-r] [-v] SOURCE TARGET\n"
     printf "\tsync the contents of TARGET with SOURCE, the connection is one way.\n"
 	printf "OPTIONS:\n"
     printf "\t-h: print this message and exit\n"
     printf "\t-l: hard link files instead of copying them\n"
     printf "\t-r: recursively sync all subdirectories of SOURCE\n"
+    printf "\t-v: print events received and the files they effect\n"
 
 }
 
@@ -22,6 +23,7 @@ fi
 
 LINKS=''
 RECURSIVE=''
+VERBOSE=''
 for i in `seq 0 $FLAG_STOP`; do
 	case "${ARGS[$i]}" in
 		'-h') 
@@ -30,6 +32,7 @@ for i in `seq 0 $FLAG_STOP`; do
 			;;
 		'-r') RECURSIVE='1';;
 		'-l') LINKS='1';;
+		'-v') VERBOSE='1';;
 	esac
 done
 
@@ -60,6 +63,9 @@ while true; do
 	file="${event_file[1]}"
 	path="${event_file[2]}"
 	for event in $events; do
+		if [ -n "$VERBOSE" ]; then
+			echo "$event: $path/$file"
+		fi
 		case "$event" in
 			"CREATE" | "MOVE_TO" | "MODIFY" | "CLOSE_WRITE" | "ATTRIB" | "MOVE_FROM")
 				if [[ -d $path/$file ]]; then 
