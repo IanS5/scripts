@@ -105,7 +105,7 @@ project-create() {
     elif [[ -d /etc/proj/templates/"$template" ]]; then
         template_dir=/etc/proj/templates/"$template"
     else
-        echo "no template named 'scratch'"
+        echo "no template named '$template'"
         echo "do \"$CALL_NAME template create $template\" to create it" 
         exit 1
     fi
@@ -148,6 +148,20 @@ EOF
     chmod +x "$PROJ_BASE_DIR/templates/$name/PROJINIT"
 }
 
+completions() {
+    case "$2" in
+        "")
+            printf "project template backup\n"
+            ;;
+        "cd")
+           ls ~/.proj/projects 
+           ;;
+    esac
+}
+
+mkcompletions() {
+    echo "complete --command 'proj' --arguments '(proj --_completion (commandline -cp))'"
+}
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
@@ -156,8 +170,12 @@ case "$1" in
         template "$2" "$3";;
     b | ba | bac | back | backu | backup)
         backup "$2" "$3";;
+    --_completion)
+        completions "$@" ;;
+    mkcompletions)
+        mkcompletions ;;
     cd)
-        cd "$PROJ_BASE_DIR/projects/$2"
+        cd "$PROJ_BASE_DIR/projects/$2" && clear && exec $SHELL
         ;;
     *)
         echo "unkown subcommand"
