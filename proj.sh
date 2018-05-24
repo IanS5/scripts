@@ -149,8 +149,7 @@ EOF
 }
 
 completions() {
-    echo "$2"
-    case "$2" in
+   case "$3" in
         "")
             printf "project\ntemplate\nbackup\n"
             ;;
