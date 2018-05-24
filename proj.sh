@@ -149,18 +149,19 @@ EOF
 }
 
 completions() {
-    case "$3" in
+    echo "$2"
+    case "$2" in
         "")
             printf "project\ntemplate\nbackup\n"
             ;;
         "cd")
-           ls -la ~/.proj/projects
-           ;;
+		find $PROJ_BASE_DIR/projects -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_BASE_DIR/projects/)).*"
+	   ;;
     esac
 }
 
 mkcompletions() {
-    echo "complete -f -c proj -a \"(proj --_completion (commandline -cp))\""
+    echo "complete -f -c proj -a \"(proj --_completion (commandline -cop))\""
 }
 
 case "$1" in
