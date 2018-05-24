@@ -149,18 +149,18 @@ EOF
 }
 
 completions() {
-    case "$2" in
+    case "$3" in
         "")
-            printf "project template backup\n"
+            printf "project\ntemplate\nbackup\n"
             ;;
         "cd")
-           ls ~/.proj/projects 
+           ls -la ~/.proj/projects
            ;;
     esac
 }
 
 mkcompletions() {
-    echo "complete --command 'proj' --arguments '(proj --_completion (commandline -cp))'"
+    echo "complete -f -c proj -a \"(proj --_completion (commandline -cp))\""
 }
 
 case "$1" in
