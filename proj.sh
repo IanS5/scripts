@@ -189,7 +189,7 @@ case "$1" in
         mkcompletions ;;
     cd)
 	cd "$PROJ_BASE_DIR/projects/$2"
-	export fish_history="proj_project_$2"
+	export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
 	export HISTFILE="$HOME/.proj/.hist/$2"
 	clear
 	exec $SHELL
