@@ -5,7 +5,7 @@ if [[ -z "$PROJ_BASE_DIR" ]]; then
 fi
 
 
-ESSENTIALS="$PROJ_BASE_DIR/backups $PROJ_BASE_DIR/projects $PROJ_BASE_DIR/templates"
+ESSENTIALS="$PROJ_BASE_DIR/.hist $PROJ_BASE_DIR/backups $PROJ_BASE_DIR/projects $PROJ_BASE_DIR/templates"
 CALL_NAME="$0"
 
 for dir in $ESSENTIALS; do
@@ -18,7 +18,7 @@ _usage() {
     echo "USAGE:"
     printf "\t$CALL_NAME SUBCOMMAND [ARGS...]\n"
     echo "SUBCOMMANDS:"
-    printf "\tbackup [project|template NAME]\n"
+    printf "\tbackup PROJECT\n"
     printf "\t\tbackup the project or template 'NAME', if the project/template is not specified then backup everything\n"
     printf "\tproject create|remove NAME [TEMPLATE]\n"
     printf "\t\tcreate or remove a project 'NAME', if the project is being created base it on 'TEMPLATE'\n"
@@ -27,30 +27,24 @@ _usage() {
 }
 
 backup() {
-    type="$1"
-    subdir="$2"
+    project="$1"
 
-    pushd "$PROJ_BASE_DIR" > /dev/null
+    pushd "$PROJ_BASE_DIR/projects" > /dev/null
 
-    if [ -z "$type" ]; then
+    if [ -z "$project" ]; then
         backup_name="$PROJ_BASE_DIR/backups/`date +'%s'`.bak"
-        latest="backups/latest.bak"
-        target="."
-    elif [ -n "$subdir" ]; then
-        backup_name="$PROJ_BASE_DIR/backups/$type.$subdir.`date +'%s'`.bak"
-        latest="backups/$type.$subdir.latest.bak"
-        target="$type/$subdir"
+        latest="$PROJ_BASE_DIR/backups/latest.bak"
+        target=""
     else
-        echo "please specify a $type name"
-        _usage
-        exit 1
+        backup_name="$PROJ_BASE_DIR/backups/$project.project.`date +'%s'`.bak"
+        latest="$PROJ_BASE_DIR/backups/$project.project.latest.bak"
+        target="$project"
     fi
 
     tar --use-compress-program="gzip --best" \
         --exclude-vcs-ignores                \
-        --exclude "backups/*"                \
         -cf "$backup_name"                   \
-        "$target" &> /dev/null
+        "$target"
     
     rm -f "$latest"
     ln -s "$backup_name" "$latest"
@@ -148,14 +142,33 @@ EOF
     chmod +x "$PROJ_BASE_DIR/templates/$name/PROJINIT"
 }
 
+list-projects() {
+    find $PROJ_BASE_DIR/projects -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_BASE_DIR/projects/)).*"
+}
+
 completions() {
    case "$3" in
         "")
-            printf "project\ntemplate\nbackup\n"
+            echo "project"
+            echo "template"
+            echo "backup"
+            echo "mkcompletions"
+            echo "cd"
+            ;;
+        "backup")
+            list-projects
             ;;
         "cd")
-		find $PROJ_BASE_DIR/projects -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_BASE_DIR/projects/)).*"
-	   ;;
+            list-projects
+            ;;
+        "template")
+            echo "create"
+            echo "remove"
+            ;;
+        "project")
+            echo "create"
+            echo "remove"
+            ;;
     esac
 }
 
@@ -175,7 +188,11 @@ case "$1" in
     mkcompletions)
         mkcompletions ;;
     cd)
-        cd "$PROJ_BASE_DIR/projects/$2" && clear && exec $SHELL
+	cd "$PROJ_BASE_DIR/projects/$2"
+	export fish_history="proj_project_$2"
+	export HISTFILE="$HOME/.proj/.hist/$2"
+	clear
+	exec $SHELL
         ;;
     *)
         echo "unkown subcommand"
