@@ -267,7 +267,7 @@ case "$1" in
     t | te | tem | temp | templa | templat | template)
         proj::templates "$2" "$3";;
     --_completion)
-        PROJ_COMPLETIONS=1 exec $0 $2 $3 $4 $5 $6 $7 $8 $9
+        PROJ_COMPLETIONS=1 exec $0 $3 $4 $5 $6 $7 $8 $9
         ;;
     mkcompletions)
         proj::generate-completion-script
