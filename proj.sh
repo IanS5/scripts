@@ -47,11 +47,20 @@ proj::binary-query() {
     return $?
 }
 
-proj::completion::list-options() {
-    if [[ -n "$PROJ_COMPLETIONS" ]]; then
-        echo "$@"
+proj::completion() {
+    if [[ -n "$PROJ_COMPLETIONS" ]] && [[ -z "$1" ]]; then
+        echo "$2"
+        exit
     fi
-    exit
+}
+
+proj::completion::stop() {
+    if [[ -n "$PROJ_COMPLETIONS" ]]; then
+        if [[ -z "$1" ]] && [[ -n "$2" ]]; then
+            echo "$2"
+        fi
+        exit
+    fi
 }
 
 proj::projects::visit() {
@@ -94,13 +103,14 @@ proj::backup() {
     resource="$1"
     name="$2"
 
-    [[ -z "$resource" ]] || proj::list-completions project template all
-
+    proj::completion $resource "project template all"
     case "$resource" in 
         "project")
+            proj::completion::stop "$name" "$(proj::projects::list)"
             proj::projects::visit
             ;;
         "template")
+            proj::completion::stop "$name" "$(proj::templates::list)"
             proj::templates::visit
             ;;
         "all")
@@ -111,7 +121,7 @@ proj::backup() {
             ;;
     esac
 
-    [[ -z "$name" ]] || proj::list-completions ls ./
+    proj::completion::stop
 
     if [[ ! -d "./$name" ]]; then
         proj::fail "could not find '$name'"
@@ -134,13 +144,17 @@ proj::projects::list() {
 
 proj::templates::list() {
     find $PROJ_TEMPLATE_DIR -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_TEMPLATE_DIR/)).*"
+    find /etc/proj/templates -maxdepth 1 -print -type d | grep -oP "(?<=(/etc/proj/templates/)).*"
 }
 
 
-proj::projects::create() {
+proj::projects::create() {    
     name="$1"
     template="$2"
-
+    echo $name
+    [[ -z "$name" ]] || proj::completion "$template" "$(proj::templates::list)"
+    proj::completion::stop
+    
     if [ -z "$template" ]; then
         template="scratch"
     fi
@@ -186,6 +200,7 @@ proj::templates::create() {
         proj::usage
         exit 1
     fi
+
     mkdir -p "$PROJ_BASE_DIR/templates/$name"
     cat > "$PROJ_BASE_DIR/templates/$name/PROJINIT" << EOF
 #!/usr/bin/bash
@@ -195,11 +210,14 @@ EOF
 }
 
 proj::projects() {
+    proj::completion "$1" "create remove backup"
+
     case "$1" in
         c | cr | cre | crea | creat | create)
             proj::projects::create "$2" "$3"
             ;;
         r | re | rem | remov | remove | rm)
+            proj::completion "$2" "$(proj::projects::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
             proj::backup project "$2"
             rm -r "$PROJ_PROJECT_DIR/$2"
@@ -215,11 +233,14 @@ proj::projects() {
 
 
 proj::templates() {
+    proj::completion "$1" "create remove backup"
+
     case "$1" in
         c | cr | cre | crea | creat | create)
             proj::templates::create "$2" "$3"
             ;;
         r | re | rem | remov | remove)
+            proj::completion "$2" "$(proj::templates::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
             proj::backup template "$2"
             rm -r "$PROJ_BASE_DIR/templates/$2"
@@ -233,35 +254,12 @@ proj::templates() {
     esac
 }
 
-completions() {
-   case "$3" in
-        "")
-            echo "project"
-            echo "template"
-            echo "backup"
-            echo "mkcompletions"
-            echo "cd"
-            ;;
-        "backup")
-            list-projects
-            ;;
-        "cd")
-            list-projects
-            ;;
-        "template")
-            echo "create"
-            echo "remove"
-            ;;
-        "project")
-            echo "create"
-            echo "remove"
-            ;;
-    esac
-}
-
-mkcompletions() {
+proj::generate-completion-script() {
     echo "complete -f -c proj -a \"(proj --_completion (commandline -cop))\""
 }
+
+
+proj::completion "$1" "project template mkcompletions cd help"
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
@@ -269,10 +267,14 @@ case "$1" in
     t | te | tem | temp | templa | templat | template)
         proj::templates "$2" "$3";;
     --_completion)
-        completions "$@" ;;
+        PROJ_COMPLETIONS=1 exec $0 $2 $3 $4 $5 $6 $7 $8 $9
+        ;;
     mkcompletions)
-        mkcompletions ;;
+        proj::generate-completion-script
+        ;;
     cd)
+        proj::completion "$2" "$(proj::projects::list)"
+        
         cd "$PROJ_BASE_DIR/projects/$2"
         export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
         export HISTFILE="$HOME/.proj/.hist/$2"
