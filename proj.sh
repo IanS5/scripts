@@ -49,7 +49,7 @@ proj::binary-query() {
 
 proj::completion() {
     if [[ -n "$PROJ_COMPLETIONS" ]] && [[ -z "$1" ]]; then
-        echo "$2"
+        echo "$2" | tr ' ' '\n'
         exit
     fi
 }
@@ -57,7 +57,7 @@ proj::completion() {
 proj::completion::stop() {
     if [[ -n "$PROJ_COMPLETIONS" ]]; then
         if [[ -z "$1" ]] && [[ -n "$2" ]]; then
-            echo "$2"
+            echo "$2" | tr ' ' '\n'
         fi
         exit
     fi
