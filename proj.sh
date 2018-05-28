@@ -58,7 +58,7 @@ project() {
         c | cr | cre | crea | creat | create)
             project-create "$2" "$3" ;;
         r | re | rem | remov | remove)
-            backup project "$2"
+            backup "$2"
             rm -r "$PROJ_BASE_DIR/projects/$2"
         ;;
         *) ls "$PROJ_BASE_DIR/projects"
@@ -188,11 +188,11 @@ case "$1" in
     mkcompletions)
         mkcompletions ;;
     cd)
-	cd "$PROJ_BASE_DIR/projects/$2"
-	export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
-	export HISTFILE="$HOME/.proj/.hist/$2"
-	clear
-	exec $SHELL
+        cd "$PROJ_BASE_DIR/projects/$2"
+        export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
+        export HISTFILE="$HOME/.proj/.hist/$2"
+        clear
+        exec $SHELL
         ;;
     *)
         echo "unkown subcommand"
