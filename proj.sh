@@ -4,134 +4,186 @@ if [[ -z "$PROJ_BASE_DIR" ]]; then
     PROJ_BASE_DIR="$HOME/.proj"
 fi
 
+if [[ -z "$PROJ_HIST_DIR" ]]; then
+    PROJ_HIST_DIR="$PROJ_BASE_DIR/.hist"
+fi
 
-ESSENTIALS="$PROJ_BASE_DIR/.hist $PROJ_BASE_DIR/backups $PROJ_BASE_DIR/projects $PROJ_BASE_DIR/templates"
-CALL_NAME="$0"
+if [[ -z "$PROJ_BACKUP_DIR" ]]; then
+    PROJ_BACKUP_DIR="$PROJ_BASE_DIR/backups"
+fi
 
-for dir in $ESSENTIALS; do
-    if [ ! -d $dir ]; then
-        mkdir -p "$dir"
-    fi
-done
+if [[ -z "$PROJ_PROJECT_DIR" ]]; then
+    PROJ_PROJECT_DIR="$PROJ_BASE_DIR/projects"
+fi
 
-_usage() {
+if [[ -z "$PROJ_TEMPLATE_DIR" ]]; then
+    PROJ_TEMPLATE_DIR="$PROJ_BASE_DIR/templates"
+fi
+
+if [[ -z "$PROJ_COMPRESSION_METHOD" ]]; then
+    PROJ_COMPRESSION_METHOD="lzma"
+fi
+
+proj::usage() {
     echo "USAGE:"
-    printf "\t$CALL_NAME SUBCOMMAND [ARGS...]\n"
+    printf "\t$0 SUBCOMMAND [ARGS...]\n"
     echo "SUBCOMMANDS:"
-    printf "\tbackup PROJECT\n"
-    printf "\t\tbackup the project or template 'NAME', if the project/template is not specified then backup everything\n"
-    printf "\tproject create|remove NAME [TEMPLATE]\n"
-    printf "\t\tcreate or remove a project 'NAME', if the project is being created base it on 'TEMPLATE'\n"
-    printf "\ttemplate create|remove NAME\n"
-    printf "\t\tcreate or remove a template 'NAME'\n"
+    printf "\tproject create | backup | remove NAME [TEMPLATE]\n"
+    printf "\t\tcreate, backup or remove a project 'NAME', if the project is being created base it on 'TEMPLATE'\n"
+    printf "\ttemplate create | backup | remove NAME\n"
+    printf "\t\tcreate, backup or remove a template 'NAME'\n"
+    printf "\tcd PROJECT\n"
+    printf "\t\tvisit 'PROJECT' in a new shell\n"
 }
 
-backup() {
-    project="$1"
+proj::fail() {
+    echo "proj: $1"
+    exit 1
+}
 
-    pushd "$PROJ_BASE_DIR/projects" > /dev/null
+proj::binary-query() {
+    read -p "$1 [Y/n] " response
+    [[ "$response" =~ [yY]([eE][sS])? ]]
+    return $?
+}
 
-    if [ -z "$project" ]; then
-        backup_name="$PROJ_BASE_DIR/backups/`date +'%s'`.bak"
-        latest="$PROJ_BASE_DIR/backups/latest.bak"
-        target=""
-    else
-        backup_name="$PROJ_BASE_DIR/backups/$project.project.`date +'%s'`.bak"
-        latest="$PROJ_BASE_DIR/backups/$project.project.latest.bak"
-        target="$project"
+proj::completion::list-options() {
+    if [[ -n "$PROJ_COMPLETIONS" ]]; then
+        echo "$@"
     fi
+    exit
+}
 
-    tar --use-compress-program="gzip --best" \
-        --exclude-vcs-ignores                \
-        -cf "$backup_name"                   \
-        "$target"
-    
-    rm -f "$latest"
-    ln -s "$backup_name" "$latest"
+proj::projects::visit() {
+    pushd "$PROJ_PROJECT_DIR/$1" > /dev/null
+}
 
+proj::templates::visit() {
+    pushd "$PROJ_TEMPLATE_DIR/$1" > /dev/null
+}
+
+proj::visit() {
+    pushd "$PROJ_BASE_DIR" > /dev/null
+}
+
+proj::leave() {
     popd > /dev/null
 }
 
-
-project() {
-    case "$1" in
-        c | cr | cre | crea | creat | create)
-            project-create "$2" "$3" ;;
-        r | re | rem | remov | remove)
-            backup "$2"
-            rm -r "$PROJ_BASE_DIR/projects/$2"
-        ;;
-        *) ls "$PROJ_BASE_DIR/projects"
+proj::backup::compress() {
+    case "$PROJ_COMPRESSION_METHOD" in
+        "lzma")
+            XZ_OPTS='-9' \
+            tar --exclude-vcs-ignores --lzma --create --file "$@"
+            ;;
+        "gzip")
+            GZIP_OPTS='-9' \
+            tar --exclude-vcs-ignores --gzip --create --file "$@"
+            ;;
+        "bzip2")
+            BZ_OPTS='-9' \
+            tar --exclude-vcs-ignores  --bzip2 --create --file "$@"
+            ;;
+        *)
+            proj::fail "unknown compression type '$PROJ_COMPRESSION_METHOD'"
+            ;;
     esac
 }
 
+proj::backup() {
+    resource="$1"
+    name="$2"
 
-template() {
-    case "$1" in
-        c | cr | cre | crea | creat | create)
-            template-create "$2" "$3" ;;
-        r | re | rem | remov | remove)
-            backup template "$2"
-            rm -r "$PROJ_BASE_DIR/templates/$2"
-        ;;
-        *) ls "$PROJ_BASE_DIR/templates"
+    [[ -z "$resource" ]] || proj::list-completions project template all
+
+    case "$resource" in 
+        "project")
+            proj::projects::visit
+            ;;
+        "template")
+            proj::templates::visit
+            ;;
+        "all")
+            proj::visit
+            ;;
+        *)
+            proj::fail "Please specify 'project' or 'tempate' or 'all' as a backup target."
+            ;;
     esac
+
+    [[ -z "$name" ]] || proj::list-completions ls ./
+
+    if [[ ! -d "./$name" ]]; then
+        proj::fail "could not find '$name'"
+    fi
+    
+    latest="$PROJ_BACKUP_DIR/$name.$resource.latest.bak"
+    backup="$PROJ_BACKUP_DIR/$name.$resource.`date +%s`.bak"
+
+    proj::backup::compress "$backup" "./$name"
+    
+    rm -f "$latest"
+    ln -s "$backup" "$latest"
+
+    proj::leave
+}
+
+proj::projects::list() {
+    find $PROJ_PROJECT_DIR -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_PROJECT_DIR/)).*"
+}
+
+proj::templates::list() {
+    find $PROJ_TEMPLATE_DIR -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_TEMPLATE_DIR/)).*"
 }
 
 
-
-project-create() {
+proj::projects::create() {
     name="$1"
     template="$2"
-
-    if [ -z "$name" ]; then
-        echo "please specify a project name"
-        _usage
-        exit 1
-    fi
 
     if [ -z "$template" ]; then
         template="scratch"
     fi
 
-    if [[ -d $PROJ_BASE_DIR/templates/"$template" ]]; then
-        template_dir=$PROJ_BASE_DIR/templates/"$template"
+    if [[ -d $PROJ_TEMPLATE_DIR/"$template" ]]; then
+        template_dir=$PROJ_TEMPLATE_DIR/"$template"
     elif [[ -d /etc/proj/templates/"$template" ]]; then
         template_dir=/etc/proj/templates/"$template"
     else
         echo "no template named '$template'"
-        echo "do \"$CALL_NAME template create $template\" to create it" 
+        echo "do \"$0 template create $template\" to create it" 
         exit 1
     fi
 
-    cp -frp $template_dir "$PROJ_BASE_DIR/projects/$name"
+    if [[ -d $PROJ_PROJECT_DIR/$name ]]; then
+        proj::binary-query "The project '$name' already exists, are you sure you want to overwrite it?" || exit
+        proj::projects remove "$name"
+    fi
+
+    proj::projects::visit
     
-    pushd "$PROJ_BASE_DIR/projects/$name" > /dev/null
+    mkdir -p "$name" && cd "$name"
+    cp -frp $template_dir/* "."
+
     export TEMPLATE=$template
     export PROJECT=$name
     
     sh ./PROJINIT
-    init_rc=$?
-    
+    response_code=$?
+
+    proj::leave
+    [[ $response_code -eq 0 ]] || proj::fail "failed to initialize project, exit code $response_code"
+
     unset TEMPLATE
     unset PROJECT
-
-    popd > /dev/null
-
-    if [ "$init_rc" != "0" ]; then
-        echo "failed to initialize project, exit code $init_rc"
-        exit 1
-    fi
-
-    rm "$PROJ_BASE_DIR/projects/$name/PROJINIT"
 }
 
-template-create() {
+proj::templates::create() {
     name="$1"
 
     if [ -z "$name" ]; then
         echo "please specify a template name"
-        _usage
+        proj::usage
         exit 1
     fi
     mkdir -p "$PROJ_BASE_DIR/templates/$name"
@@ -142,8 +194,43 @@ EOF
     chmod +x "$PROJ_BASE_DIR/templates/$name/PROJINIT"
 }
 
-list-projects() {
-    find $PROJ_BASE_DIR/projects -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_BASE_DIR/projects/)).*"
+proj::projects() {
+    case "$1" in
+        c | cr | cre | crea | creat | create)
+            proj::projects::create "$2" "$3"
+            ;;
+        r | re | rem | remov | remove | rm)
+            proj::binary-query "Are you sure you want to delete '$2'?" || exit
+            proj::backup project "$2"
+            rm -r "$PROJ_PROJECT_DIR/$2"
+            ;;
+        b | ba | bac | back | backu | backup | bak)
+            proj::backup project "$2"
+            ;;
+        *)
+            proj::projects::list | grep -s "$1"
+            ;;
+    esac
+}
+
+
+proj::templates() {
+    case "$1" in
+        c | cr | cre | crea | creat | create)
+            proj::templates::create "$2" "$3"
+            ;;
+        r | re | rem | remov | remove)
+            proj::binary-query "Are you sure you want to delete '$2'?" || exit
+            proj::backup template "$2"
+            rm -r "$PROJ_BASE_DIR/templates/$2"
+            ;;
+        b | ba | bac | back | backu | backup | bak)
+            proj::backup template "$2"
+            ;;
+        *)
+            proj::projects::list | grep -s "$1"
+            ;;
+    esac
 }
 
 completions() {
@@ -178,11 +265,9 @@ mkcompletions() {
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
-        project "$2" "$3" "$4";;
+        proj::projects "$2" "$3" "$4";;
     t | te | tem | temp | templa | templat | template)
-        template "$2" "$3";;
-    b | ba | bac | back | backu | backup)
-        backup "$2" "$3";;
+        proj::templates "$2" "$3";;
     --_completion)
         completions "$@" ;;
     mkcompletions)
@@ -194,9 +279,12 @@ case "$1" in
         clear
         exec $SHELL
         ;;
+    "-h" | "--help" | "help" | "")
+        proj::usage
+        ;;
     *)
         echo "unkown subcommand"
-        _usage
-        exit 1
+        proj::usage
+        proj::fail
         ;;
 esac
