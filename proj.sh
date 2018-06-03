@@ -43,13 +43,13 @@ proj::fail() {
 
 proj::binary-query() {
     read -p "$1 [Y/n] " response
-    [[ "$response" =~ [yY]([eE][sS])? ]]
+    [[ "$response" =~ ([yY]([eE][sS])?) ]]
     return $?
 }
 
 proj::completion() {
     if [[ -n "$PROJ_COMPLETIONS" ]] && [[ -z "$1" ]]; then
-        echo "$2" | tr ' ' '\n'
+        echo "$2" 
         exit
     fi
 }
@@ -57,7 +57,7 @@ proj::completion() {
 proj::completion::stop() {
     if [[ -n "$PROJ_COMPLETIONS" ]]; then
         if [[ -z "$1" ]] && [[ -n "$2" ]]; then
-            echo "$2" | tr ' ' '\n'
+            echo "$2" 
         fi
         exit
     fi
@@ -79,27 +79,47 @@ proj::leave() {
     popd > /dev/null
 }
 
-proj::backup::compress() {
-    case "$PROJ_COMPRESSION_METHOD" in
-        "lzma")
-            XZ_OPTS='-9' \
-            tar --exclude-vcs-ignores --lzma --create --file "$@"
-            ;;
-        "gzip")
-            GZIP_OPTS='-9' \
-            tar --exclude-vcs-ignores --gzip --create --file "$@"
-            ;;
-        "bzip2")
-            BZ_OPTS='-9' \
-            tar --exclude-vcs-ignores  --bzip2 --create --file "$@"
-            ;;
-        *)
-            proj::fail "unknown compression type '$PROJ_COMPRESSION_METHOD'"
-            ;;
-    esac
+proj::backup::compress() { 
+    XZ_OPTS='-9' tar --exclude-vcs-ignores --lzma "$@"
 }
 
-proj::backup() {
+proj::backup::recover() {
+    resource="$1"
+    name="$2"
+
+    proj::completion $resource "project template"
+    case "$resource" in 
+        "project")
+            proj::completion::stop "$name" "$(proj::backups::list-latest "project")" 
+            target="$PROJ_BACKUP_DIR/$name.project.latest.bak"
+            directory="$PROJ_PROJECT_DIR/$name"
+            ;;
+        "template")
+            proj::completion::stop "$name" "$(proj::backups::list-latest "template")" 
+            target="$PROJ_BACKUP_DIR/$name.template.latest.bak"
+            directory="$PROJ_TEMPLATE_DIR/$name"
+            ;; 
+        *)
+            proj::fail "Please specify 'project' or 'tempate' as a recover target."
+            ;;
+    esac
+    if [[ -d $directory ]]; then
+        if [[ -n "`ls -a $directory`" ]]; then
+            if proj::binary-query "The $resource $name is not empty, are you sure you want to restore from a backup?"; then
+                rm -rf "$directory";
+            else
+                exit 0
+            fi
+            mkdir "$directory"
+        fi
+    else
+        mkdir "$directory"
+    fi
+
+    proj::backup::compress --extract --directory "$directory" --file "$target"
+}
+ 
+proj::backup::backup() {
     resource="$1"
     name="$2"
 
@@ -129,8 +149,9 @@ proj::backup() {
     
     latest="$PROJ_BACKUP_DIR/$name.$resource.latest.bak"
     backup="$PROJ_BACKUP_DIR/$name.$resource.`date +%s`.bak"
-
-    proj::backup::compress "$backup" "./$name"
+    
+    extra_args="--create" \
+    proj::backup::compress --create --file "$backup" "./$name"
     
     rm -f "$latest"
     ln -s "$backup" "$latest"
@@ -140,6 +161,26 @@ proj::backup() {
 
 proj::projects::list() {
     find $PROJ_PROJECT_DIR -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_PROJECT_DIR/)).*"
+}
+
+proj::backups::list() {
+    find $PROJ_BACKUP_DIR -maxdepth 1 -print -type d  \
+        | grep -oP "(?<=($PROJ_BACKUP_DIR/))(.+)(\.$1\.)([0-9]+)(\.bak)" \
+        | awk -F'.' -f <(cat - <<-EOF
+            \$2 == "$1" {
+                printf \$1 " "
+                print "date", "-d", "@"\$3, "\"+%m/%d/%Y %H:%M:%S\"" | "/bin/sh"
+                close("/bin/sh")
+            }
+EOF
+     ) | sort -r \
+       | column -t -s' '
+}
+
+proj::backups::list-latest() {
+    find $PROJ_BACKUP_DIR -maxdepth 1 -print -type d  \
+        | grep -oP "(?<=($PROJ_BACKUP_DIR/))(.+)(\.$1\.latest\.bak)" \
+        | awk -F'.' '$3 == "latest" { print $1 }'
 }
 
 proj::templates::list() {
@@ -210,20 +251,24 @@ EOF
 }
 
 proj::projects() {
-    proj::completion "$1" "create remove backup"
+    proj::completion "$1" "create remove recover backup"
 
     case "$1" in
-        c | cr | cre | crea | creat | create)
+        rec | reco | recov | recover)
+	    proj::completion::stop "$2" "$(proj::backups::list project)"
+	    proj::backup::recover project "$2"
+            ;;
+	c | cr | cre | crea | creat | create)
             proj::projects::create "$2" "$3"
             ;;
         r | re | rem | remov | remove | rm)
             proj::completion "$2" "$(proj::projects::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
-            proj::backup project "$2"
+            proj::backup::backup project "$2"
             rm -r "$PROJ_PROJECT_DIR/$2"
             ;;
         b | ba | bac | back | backu | backup | bak)
-            proj::backup project "$2"
+            proj::backup::backup project "$2"
             ;;
         *)
             proj::projects::list | grep -s "$1"
@@ -242,11 +287,11 @@ proj::templates() {
         r | re | rem | remov | remove)
             proj::completion "$2" "$(proj::templates::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
-            proj::backup template "$2"
+            proj::backup::backup template "$2"
             rm -r "$PROJ_BASE_DIR/templates/$2"
             ;;
         b | ba | bac | back | backu | backup | bak)
-            proj::backup template "$2"
+            proj::backup::backup template "$2"
             ;;
         *)
             proj::projects::list | grep -s "$1"
@@ -284,7 +329,8 @@ case "$1" in
     "-h" | "--help" | "help" | "")
         proj::usage
         ;;
-    *)
+    *i)
+	proj::completion::stop
         echo "unkown subcommand"
         proj::usage
         proj::fail
