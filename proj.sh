@@ -20,10 +20,6 @@ if [[ -z "$PROJ_TEMPLATE_DIR" ]]; then
     PROJ_TEMPLATE_DIR="$PROJ_BASE_DIR/templates"
 fi
 
-if [[ -z "$PROJ_COMPRESSION_METHOD" ]]; then
-    PROJ_COMPRESSION_METHOD="lzma"
-fi
-
 proj::usage() {
     echo "USAGE:"
     printf "\t$0 SUBCOMMAND [ARGS...]\n"
@@ -49,7 +45,7 @@ proj::binary-query() {
 
 proj::completion() {
     if [[ -n "$PROJ_COMPLETIONS" ]] && [[ -z "$1" ]]; then
-        echo "$2" 
+        echo -e "$2"
         exit
     fi
 }
@@ -57,7 +53,7 @@ proj::completion() {
 proj::completion::stop() {
     if [[ -n "$PROJ_COMPLETIONS" ]]; then
         if [[ -z "$1" ]] && [[ -n "$2" ]]; then
-            echo "$2" 
+            echo -e "$2"
         fi
         exit
     fi
@@ -79,7 +75,7 @@ proj::leave() {
     popd > /dev/null
 }
 
-proj::backup::compress() { 
+proj::backup::compress() {
     XZ_OPTS='-9' tar --exclude-vcs-ignores --lzma "$@"
 }
 
@@ -87,8 +83,8 @@ proj::backup::recover() {
     resource="$1"
     name="$2"
 
-    proj::completion $resource "project template"
-    case "$resource" in 
+    proj::completion $resource "project\ntemplate"
+    case "$resource" in
         "project")
             proj::completion::stop "$name" "$(proj::backups::list-latest "project")" 
             target="$PROJ_BACKUP_DIR/$name.project.latest.bak"
@@ -123,7 +119,7 @@ proj::backup::backup() {
     resource="$1"
     name="$2"
 
-    proj::completion $resource "project template all"
+    proj::completion $resource "project\ntemplate\nall"
     case "$resource" in 
         "project")
             proj::completion::stop "$name" "$(proj::projects::list)"
@@ -192,7 +188,7 @@ proj::templates::list() {
 proj::projects::create() {    
     name="$1"
     template="$2"
-    echo $name
+
     [[ -z "$name" ]] || proj::completion "$template" "$(proj::templates::list)"
     proj::completion::stop
     
@@ -225,6 +221,7 @@ proj::projects::create() {
     
     sh ./PROJINIT
     response_code=$?
+    rm ./PROJINIT
 
     proj::leave
     [[ $response_code -eq 0 ]] || proj::fail "failed to initialize project, exit code $response_code"
@@ -251,7 +248,7 @@ EOF
 }
 
 proj::projects() {
-    proj::completion "$1" "create remove recover backup"
+    proj::completion "$1" "create\nremove\nrecover\nbackup"
 
     case "$1" in
         rec | reco | recov | recover)
@@ -278,7 +275,7 @@ proj::projects() {
 
 
 proj::templates() {
-    proj::completion "$1" "create remove backup"
+    proj::completion "$1" "create\nremove\nbackup"
 
     case "$1" in
         c | cr | cre | crea | creat | create)
@@ -304,7 +301,7 @@ proj::generate-completion-script() {
 }
 
 
-proj::completion "$1" "project template mkcompletions cd help"
+proj::completion "$1" "project\ntemplate\ncd\nhelp"
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
