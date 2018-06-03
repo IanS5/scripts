@@ -252,7 +252,7 @@ proj::projects() {
 
     case "$1" in
         rec | reco | recov | recover)
-	    proj::completion::stop "$2" "$(proj::backups::list project)"
+	    proj::completion::stop "$2" "$(proj::backups::list-latest project)"
 	    proj::backup::recover project "$2"
             ;;
 	c | cr | cre | crea | creat | create)
