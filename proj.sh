@@ -317,7 +317,9 @@ case "$1" in
     cd)
         proj::completion "$2" "$(proj::projects::list)"
         
-        cd "$PROJ_BASE_DIR/projects/$2"
+        cd "$PROJ_PROJECT_DIR/$2"
+        export PROJ_CURRENT_PROJECT_BASE="$PROJ_PROJECT_DIR/$2"
+        export PROJ_CURRENT_PROJECT_NAME="$2"
         export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
         export HISTFILE="$HOME/.proj/.hist/$2"
         clear
