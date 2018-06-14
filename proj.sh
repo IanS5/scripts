@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+PROJ_BACKUP_BLOCKSIZE=10K
+
 if [[ -z "$PROJ_BASE_DIR" ]]; then
     PROJ_BASE_DIR="$HOME/.proj"
 fi
@@ -30,6 +32,82 @@ proj::usage() {
     printf "\t\tcreate, backup or remove a template 'NAME'\n"
     printf "\tcd PROJECT\n"
     printf "\t\tvisit 'PROJECT' in a new shell\n"
+}
+
+proj::load::begin() {
+    export PROJ_LOADING_LENGTH=$1
+    if [[ -z "$PROJ_LOADING_LENGTH" ]]; then
+        PROJ_LOADING_LENGTH=`expr $(tput cols) / 2`;
+    fi
+    
+    tput civis -- invisible
+    echo
+    echo
+    printf "\033[1A"
+}
+
+proj::load::end() {
+    proj::load::render_percent 1
+    echo
+    echo
+    tput cnorm -- normal
+}
+
+proj::load::render_percent() {
+    local frames=('▏' '▎' '▍' '▌' '▋' '▊' '▉' '█')
+    local frames_count=${#frames[@]}
+    local index=$(echo "trunc($1 * $PROJ_LOADING_LENGTH)" | simplify)
+    local partial=$(echo "round(frac($1 * $PROJ_LOADING_LENGTH) * ($frames_count - 1))" | simplify)
+    printf "  %3d%%  \u2590" "$(echo "round($1 * 100)" | simplify)"
+    if [[ "$index" -gt 1 ]]; then
+        printf "${frames[-1]}%.0s" `seq $index`
+    fi
+    if [[ $index -ne $PROJ_LOADING_LENGTH ]]; then
+        if [[ "$index" -gt 0 ]]; then
+            printf "${frames[$partial]}"
+        fi
+    else
+        printf "${frames[-1]}"
+    fi
+    printf "\e[49m"
+    if [[ $index -ne $PROJ_LOADING_LENGTH ]]; then
+        printf " %.0s" `seq $(expr $PROJ_LOADING_LENGTH - $index)`
+    fi
+    printf "\e[0m\u258C\r"
+}
+
+proj::backup::compress() {
+    export precompressed=$(proj::backup::sizeof $1)
+    echo "$precompressed"
+    pushd "$1/.." > /dev/null
+    proj::load::begin
+
+    XZ_OPTS='-9' tar --exclude-vcs-ignores --checkpoint=1 --xz --create --checkpoint-action=exec='printf "%s\n" "$(simplify "$TAR_CHECKPOINT/$precompressed")"' --file "$2" "./$(basename $1)" |
+    while read -r line || [[ -n "$line" ]]; do
+        proj::load::render_percent $line
+    done
+    proj::load::end
+    popd > /dev/null
+}
+
+proj::backup::decompress() {
+    export precompressed=$(proj::backup::sizeof-archive $1)
+    if [[ ! -d "$2" ]]; then mkdir "$2"; fi
+    proj::load::begin
+
+    XZ_OPTS='-9' tar --checkpoint=1 --xz --extract --checkpoint-action=exec='printf "%s\n" "$(simplify "$TAR_CHECKPOINT/$precompressed")"' --file "$1" -C "$2" |
+    while read -r line || [[ -n "$line" ]]; do
+        proj::load::render_percent $line
+    done
+    proj::load::end
+}
+
+proj::backup::sizeof-archive() {
+    expr $(xz -l $1 | awk 'NR == 2{printf "%s%.1s\n", $5, $6}' | numfmt --from iec) / $(numfmt --from iec $PROJ_BACKUP_BLOCKSIZE)
+}
+
+proj::backup::sizeof() {
+    du -hbc -B1$PROJ_BACKUP_BLOCKSIZE --apparent-size $1 | awk '$2 == "total" { print $1 }'
 }
 
 proj::fail() {
@@ -75,10 +153,6 @@ proj::leave() {
     popd > /dev/null
 }
 
-proj::backup::compress() {
-    XZ_OPTS='-9' tar --exclude-vcs-ignores --lzma "$@"
-}
-
 proj::backup::recover() {
     resource="$1"
     name="$2"
@@ -112,7 +186,7 @@ proj::backup::recover() {
         mkdir "$directory"
     fi
 
-    proj::backup::compress --extract --directory "$directory" --file "$target"
+    proj::backup::decompress "$target" "$directory"
 }
  
 proj::backup::backup() {
@@ -146,8 +220,7 @@ proj::backup::backup() {
     latest="$PROJ_BACKUP_DIR/$name.$resource.latest.bak"
     backup="$PROJ_BACKUP_DIR/$name.$resource.`date +%s`.bak"
     
-    extra_args="--create" \
-    proj::backup::compress --create --file "$backup" "./$name"
+    proj::backup::compress "./$name" "$backup"
     
     rm -f "$latest"
     ln -s "$backup" "$latest"
@@ -328,8 +401,8 @@ case "$1" in
     "-h" | "--help" | "help" | "")
         proj::usage
         ;;
-    *i)
-	proj::completion::stop
+    *)
+        proj::completion::stop
         echo "unkown subcommand"
         proj::usage
         proj::fail
