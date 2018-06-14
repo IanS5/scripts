@@ -78,7 +78,6 @@ proj::load::render_percent() {
 
 proj::backup::compress() {
     export precompressed=$(proj::backup::sizeof $1)
-    echo "$precompressed"
     pushd "$1/.." > /dev/null
     proj::load::begin
 
