@@ -106,7 +106,7 @@ proj::backup::sizeof-archive() {
 }
 
 proj::backup::sizeof() {
-    du -hbc -B1$PROJ_BACKUP_BLOCKSIZE --apparent-size $1 | awk '$2 == "total" { print $1 }'
+    du -hbc -B$PROJ_BACKUP_BLOCKSIZE --apparent-size $1 | awk '$2 == "total" { print $1 }'
 }
 
 proj::fail() {
