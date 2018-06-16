@@ -150,6 +150,18 @@ effect::set-foreground() {
     fi
 }
 
+effect::set-background() {
+    if [[ "$1" =~ '^[0-9]+$' ]]; then
+        if [[ $1 -lt 16 ]]; then
+            effect::set-background-16 "$1"
+        else
+            effect::set-background-256 "$1"
+        fi
+    else
+        effect::set-background-16 "$1"
+    fi
+}
+
 effect::command() {
     case "$1" in
         "bold") effect::set-bold;;
@@ -166,10 +178,10 @@ effect::command() {
         "!hide") effect::reset-hide;;
         "!foreground" | "!f") effect::reset-foreground;;
         "!background" | "!b") effect::reset-background;;
-        "foreground="*) effect::set-foreground "$(echo "$1" | tr -d 'foreground=')";;
-        "f="*) effect::set-foreground "$(echo "$1" | tr -d 'f=')";;
-        "background="*) effect::set-foreground "$(echo "$1" | tr -d 'background=')";;
-        "b="*) effect::set-foreground "$(echo "$1" | tr -d 'b=')";;
+        "foreground="*) effect::set-foreground "$(echo "$1" | sed 's/foreground=//g')";;
+        "f="*) effect::set-foreground "$(echo "$1" | sed 's/f=//g')";;
+        "background="*) effect::set-background "$(echo "$1" | sed 's/background=//g')";;
+        "b="*) effect::set-background "$(echo "$1" | sed 's/b=//g')";;
     esac
 }
 
