@@ -387,13 +387,16 @@ case "$1" in
         proj::generate-completion-script
         ;;
     cd)
+        if [[ ! -d $PROJ_PROJECT_DIR/$2 ]]; then exit 1; fi
         proj::completion "$2" "$(proj::projects::list)"
         
         cd "$PROJ_PROJECT_DIR/$2"
+        
+        hash=$(echo "$2" | md5sum | awk '{print $1}')
         export PROJ_CURRENT_PROJECT_BASE="$PROJ_PROJECT_DIR/$2"
         export PROJ_CURRENT_PROJECT_NAME="$2"
-        export fish_history="proj_project_`printf $2 | tr -cd '[[:allnum:]]_'`"
-        export HISTFILE="$HOME/.proj/.hist/$2"
+        export fish_history="proj_project_$hash"
+        export HISTFILE="$HOME/.proj/.hist/$hash"
         clear
         exec $SHELL
         ;;
