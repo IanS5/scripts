@@ -368,10 +368,6 @@ proj::templates() {
     esac
 }
 
-proj::generate-completion-script() {
-    echo "complete -f -c proj -a \"(proj --_completion (commandline -cop))\""
-}
-
 
 proj::completion "$1" "project\ntemplate\ncd\nhelp"
 
@@ -382,9 +378,6 @@ case "$1" in
         proj::templates "$2" "$3";;
     --_completion)
         PROJ_COMPLETIONS=1 exec $0 $3 $4 $5 $6 $7 $8 $9
-        ;;
-    mkcompletions)
-        proj::generate-completion-script
         ;;
     cd)
         if [[ ! -d $PROJ_PROJECT_DIR/$2 ]]; then exit 1; fi

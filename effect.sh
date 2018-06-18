@@ -17,6 +17,27 @@ effect::fail() {
     exit 1
 }
 
+effect::list-colors() {
+cat <<-'EOF' | grep "$(effect::clean-text "$1")"
+black
+red
+green
+yellow
+blue
+magenta
+cyan
+lightgrey
+darkgrey
+lightred
+lightgreen
+lightyellow
+lightblue
+lightmagenta
+lightcyan
+white
+EOF
+}
+
 effect::set-foreground-16() {
     case $(effect::clean-text "$1") in
         "black"        |  "0") effect::put "\e[30m";;
@@ -184,6 +205,11 @@ effect::command() {
         "b="*) effect::set-background "$(echo "$1" | sed 's/b=//g')";;
     esac
 }
+
+if [[ "$1" == "color" ]]; then
+    effect::list-colors "$2"
+    exit 0
+fi
 
 for arg in "$@"; do
     effect::command "$arg"
