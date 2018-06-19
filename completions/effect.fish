@@ -6,7 +6,7 @@ function __ians5_scripts_complete_effect
     switch "$op"
         case 'foreground=*' 'background=*' 'f=*' 'b=*'
             string replace = ' ' -- $op | read -l key value
-            ./effect.sh color $value | awk "{printf \"%s=%s\n\", \"$key\", \$0}"
+            effect color $value | awk "{printf \"%s=%s\n\", \"$key\", \$0}"
         case 'f' 'fo*'
             echo "foreground"
         case 'b' 'ba*'
