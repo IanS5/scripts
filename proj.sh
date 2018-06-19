@@ -120,22 +120,6 @@ proj::binary-query() {
     return $?
 }
 
-proj::completion() {
-    if [[ -n "$PROJ_COMPLETIONS" ]] && [[ -z "$1" ]]; then
-        echo -e "$2"
-        exit
-    fi
-}
-
-proj::completion::stop() {
-    if [[ -n "$PROJ_COMPLETIONS" ]]; then
-        if [[ -z "$1" ]] && [[ -n "$2" ]]; then
-            echo -e "$2"
-        fi
-        exit
-    fi
-}
-
 proj::projects::visit() {
     pushd "$PROJ_PROJECT_DIR/$1" > /dev/null
 }
@@ -156,15 +140,12 @@ proj::backup::recover() {
     resource="$1"
     name="$2"
 
-    proj::completion $resource "project\ntemplate"
     case "$resource" in
         "project")
-            proj::completion::stop "$name" "$(proj::backups::list-latest "project")" 
             target="$PROJ_BACKUP_DIR/$name.project.latest.bak"
             directory="$PROJ_PROJECT_DIR/$name"
             ;;
         "template")
-            proj::completion::stop "$name" "$(proj::backups::list-latest "template")" 
             target="$PROJ_BACKUP_DIR/$name.template.latest.bak"
             directory="$PROJ_TEMPLATE_DIR/$name"
             ;; 
@@ -192,14 +173,11 @@ proj::backup::backup() {
     resource="$1"
     name="$2"
 
-    proj::completion $resource "project\ntemplate\nall"
     case "$resource" in 
         "project")
-            proj::completion::stop "$name" "$(proj::projects::list)"
             proj::projects::visit
             ;;
         "template")
-            proj::completion::stop "$name" "$(proj::templates::list)"
             proj::templates::visit
             ;;
         "all")
@@ -209,8 +187,6 @@ proj::backup::backup() {
             proj::fail "Please specify 'project' or 'tempate' or 'all' as a backup target."
             ;;
     esac
-
-    proj::completion::stop
 
     if [[ ! -d "./$name" ]]; then
         proj::fail "could not find '$name'"
@@ -253,16 +229,16 @@ proj::backups::list-latest() {
 
 proj::templates::list() {
     find $PROJ_TEMPLATE_DIR -maxdepth 1 -print -type d | grep -oP "(?<=($PROJ_TEMPLATE_DIR/)).*"
-    find /etc/proj/templates -maxdepth 1 -print -type d | grep -oP "(?<=(/etc/proj/templates/)).*"
+
+    if [[ -d /etc/proj/templates ]]; then
+        find /etc/proj/templates -maxdepth 1 -print -type d | grep -oP "(?<=(/etc/proj/templates/)).*"
+    fi
 }
 
 
 proj::projects::create() {    
     name="$1"
     template="$2"
-
-    [[ -z "$name" ]] || proj::completion "$template" "$(proj::templates::list)"
-    proj::completion::stop
     
     if [ -z "$template" ]; then
         template="scratch"
@@ -320,18 +296,14 @@ EOF
 }
 
 proj::projects() {
-    proj::completion "$1" "create\nremove\nrecover\nbackup"
-
     case "$1" in
         rec | reco | recov | recover)
-	    proj::completion::stop "$2" "$(proj::backups::list-latest project)"
-	    proj::backup::recover project "$2"
+            proj::backup::recover project "$2"
             ;;
-	c | cr | cre | crea | creat | create)
+	    c | cr | cre | crea | creat | create)
             proj::projects::create "$2" "$3"
             ;;
         r | re | rem | remov | remove | rm)
-            proj::completion "$2" "$(proj::projects::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
             proj::backup::backup project "$2"
             rm -r "$PROJ_PROJECT_DIR/$2"
@@ -339,22 +311,22 @@ proj::projects() {
         b | ba | bac | back | backu | backup | bak)
             proj::backup::backup project "$2"
             ;;
+        f | fi | fin | find)
+            proj::projects::list | grep -s -- "$2"
+            ;;
         *)
-            proj::projects::list | grep -s "$1"
+            proj::projects::list | grep -s -- "$1"
             ;;
     esac
 }
 
 
 proj::templates() {
-    proj::completion "$1" "create\nremove\nbackup"
-
     case "$1" in
         c | cr | cre | crea | creat | create)
             proj::templates::create "$2" "$3"
             ;;
         r | re | rem | remov | remove)
-            proj::completion "$2" "$(proj::templates::list)"
             proj::binary-query "Are you sure you want to delete '$2'?" || exit
             proj::backup::backup template "$2"
             rm -r "$PROJ_BASE_DIR/templates/$2"
@@ -362,26 +334,19 @@ proj::templates() {
         b | ba | bac | back | backu | backup | bak)
             proj::backup::backup template "$2"
             ;;
-        *)
-            proj::projects::list | grep -s "$1"
+        f | fi | fin | find)
+            proj::templates::list | grep -s "$1"
             ;;
     esac
 }
-
-
-proj::completion "$1" "project\ntemplate\ncd\nhelp"
 
 case "$1" in
     p | pr | pro | proj | proje | projec | project)
         proj::projects "$2" "$3" "$4";;
     t | te | tem | temp | templa | templat | template)
         proj::templates "$2" "$3";;
-    --_completion)
-        PROJ_COMPLETIONS=1 exec $0 $3 $4 $5 $6 $7 $8 $9
-        ;;
     cd)
         if [[ ! -d $PROJ_PROJECT_DIR/$2 ]]; then exit 1; fi
-        proj::completion "$2" "$(proj::projects::list)"
         
         cd "$PROJ_PROJECT_DIR/$2"
         
@@ -397,7 +362,6 @@ case "$1" in
         proj::usage
         ;;
     *)
-        proj::completion::stop
         echo "unkown subcommand"
         proj::usage
         proj::fail
