@@ -1,1 +1,1 @@
-complete -f -c icon -a "(icon -n -a (commandline -cot))"
+complete -f -c icon -a "(icon -n -a (commandline -t))"
