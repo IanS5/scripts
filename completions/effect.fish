@@ -8,9 +8,9 @@ function __ians5_scripts_complete_effect
             string replace = ' ' -- $op | read -l key value
             effect color $value | awk "{printf \"%s=%s\n\", \"$key\", \$0}"
         case 'f' 'fo*'
-            echo "foreground"
+            effect color | awk '{printf "%s=%s\n", "foreground", $0}'
         case 'b' 'ba*'
-            echo "background"
+            effect color | awk '{printf "%s=%s\n", "background", $0}'
         case 'bo*'
             echo "bold"
         case 'i' 'it*'
