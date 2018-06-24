@@ -1,21 +1,21 @@
 #!/usr/bin/bash
 # proj
 #
-# Usage: proj [options]
+# Usage: proj [options] [<NAME>] [<TEMPLATE>]
 #        proj --help
 #
 # A simple project manager script.
 #
 # Options:
 #   -h, --help
-#   -t, --template=<TEMPLATE>  select the template named TEMPLATE
-#   -p, --project=<PROJECT>    select the project named PROJECT
-#   -L, --list                 list all selected resources, <PROJECT> and <TEMPLATE> or considered RegExp(s)
-#   -C, --create               create the selected resources
-#   -R, --remove               remove the selected resources
-#   -B, --backup               make a compressed copy of the selected resources
-#   -E, --restore              restore from a compressed copy of the selected resources
-#   -V, --visit                visit a project or template's directory in a subshell
+#   -T, --template  Operate on a template
+#   -P, --project   Operate on a project
+#   -l, --list      list all selected resources, <PROJECT> and <TEMPLATE> or considered RegExp(s)
+#   -c, --create    create the selected resources
+#   -r, --remove    remove the selected resources
+#   -b, --backup    make a compressed copy of the selected resources
+#   -e, --restore   restore from a compressed copy of the selected resources
+#   -v, --visit     visit a project or template's directory in a subshell
 
 
 PROJ_BACKUP_BLOCKSIZE=10K
@@ -257,7 +257,7 @@ proj::projects::create() {
         template_dir=/etc/proj/templates/"$template"
     else
         echo "no template named '$template'"
-        echo "do \"$0 template create $template\" to create it" 
+        echo "do \"$0 --template --create $template\" to create it" 
         exit 1
     fi
 
@@ -377,10 +377,10 @@ arg() {
 
 source docopts.sh --auto "$@"
 
-project="${ARGS[--project]}"
-template="${ARGS[--template]}"
+if arg --project; then
+    project="${ARGS[<NAME>]}"
+    template="${ARGS[<TEMPLATE>]}"
 
-if [ -n "$project" ] || arg --project; then
     if arg '--list'; then
         proj::projects::list | grep -P -- "$project"
     fi
@@ -402,7 +402,9 @@ if [ -n "$project" ] || arg --project; then
     fi
 fi
 
-if [ -n "$template" ] || arg --template; then
+if arg --template; then
+    template="${ARGS[<NAME>]}"
+
     if arg '--list'; then
         proj::templates::list | grep -P -- "$template"
     fi
