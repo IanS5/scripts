@@ -1,4 +1,20 @@
-#!/usr/bin/bash
+#!/bin/bash
+#
+# Usage: icon [-esna] [ICON] ...
+#        icon [-h | --help]
+#
+# Find an icon from the nerd font's (or similar fonts) CSS.
+#
+# Arguments:
+#   ICON  the icon's name
+#
+# Options:
+#   -h, --help
+#   -e, --esaped    print the icons unicode codepoint in the form of `\uXXXX' instead of the icon itself
+#   -s, --search    use fzf to search the available icons
+#   -n, --newlines  seperate the icons with a newline
+#   -a, --names     return icons that contain ICON in their name
+
 
 if [[ -z "$ICON_PREFIX" ]]; then
     export ICON_PREFIX=""
@@ -73,42 +89,27 @@ icon::find() {
     grep "^$1[[:space:]]" $(icon::map::cache) | sed 's/.*[[:space:]]//g'
 }
 
-icon::find_similar() {
+icon::find-similar() {
     grep  "$1" $(icon::map::cache) | sed 's/[[:space:]].*//g'
 }
 
-flag_escaped=
-flag_search=
-flag_newline=
-flag_names=
-declare -a arg_icons
+source docopts.sh --auto "$@"
+
 declare -a icons_escaped
 
-for arg in "$@"; do
-    case "$arg" in
-        "--escaped" |   "-e") flag_escaped=1;;
-        "--search"  |   "-s") flag_search=1;;
-        "--newline" |   "-n") flag_newline=1;;
-        "--names"   |   "-a") flag_names=1;;
-        *)
-            arg_icons+=( "$arg" )
-            ;;
-    esac
-done
-
-if [[ -n $flag_search ]]; then
+if [[ ${ARGS[--search]} = 'true' ]]; then
     icons_escaped=("$(icon::fzf-search)")
-elif [[ -n $flag_names ]]; then
-    for icon in "${arg_icons[@]}"; do
-        icons_escaped+=("$(icon::find_similar $icon)")
+elif [[ ${ARGS[--names]} = 'true' ]]; then
+    for i in `seq 0 $(expr ${ARGS[ICON,#]} - 1)`; do
+        icons_escaped+=("$(icon::find-similar ${ARGS[ICON,$i]})")
     done
 else
-    for icon in "${arg_icons[@]}"; do
-        icons_escaped+=("$(icon::find $icon)")
+    for i in `seq 0 $(expr ${ARGS[ICON,#]} - 1)`; do
+        icons_escaped+=("$(icon::find ${ARGS[ICON,$i]})")
     done
 fi
 
 for icon in "${icons_escaped[@]}"; do
-    if [[ -n $flag_escaped ]] || [[ -n $flag_names ]]; then printf "%s" "$icon"; else printf "$icon"; fi
-    if [[ -n $flag_newline ]]; then echo; fi
+    if [[ ${ARGS[--escaped]} = 'true' ]] || [[ ${ARGS[--names]} = 'true' ]]; then printf "%s" "$icon"; else printf "$icon"; fi
+    if [[ ${ARGS[--newline]} = 'true' ]]; then echo; fi
 done
