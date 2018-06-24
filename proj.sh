@@ -8,14 +8,14 @@
 #
 # Options:
 #   -h, --help
-#   -T, --template=<TEMPLATE>  select the template named TEMPLATE
-#   -P, --project=<PROJECT>    select the project named PROJECT
-#   -l, --list                 list all selected resources, <PROJECT> and <TEMPLATE> or considered RegExp(s)
-#   -c, --create               create the selected resources
-#   -r, --remove               remove the selected resources
-#   -b, --backup               make a compressed copy of the selected resources
-#   -e, --restore              restore from a compressed copy of the selected resources
-#   -v, --visit                visit a project or template's directory in a subshell
+#   -t, --template=<TEMPLATE>  select the template named TEMPLATE
+#   -p, --project=<PROJECT>    select the project named PROJECT
+#   -L, --list                 list all selected resources, <PROJECT> and <TEMPLATE> or considered RegExp(s)
+#   -C, --create               create the selected resources
+#   -R, --remove               remove the selected resources
+#   -B, --backup               make a compressed copy of the selected resources
+#   -E, --restore              restore from a compressed copy of the selected resources
+#   -V, --visit                visit a project or template's directory in a subshell
 
 
 PROJ_BACKUP_BLOCKSIZE=10K

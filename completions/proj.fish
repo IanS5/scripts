@@ -1,10 +1,10 @@
 #!/usr/bin/fish
 
-complete -c proj -s l -l list
-complete -c proj -s v -l visit
-complete -c proj -s c -l create
-complete -c proj -s r -l remove
-complete -c proj -s b -l backup
-complete -c proj -s e -l recover
-complete -c proj -s P -l project -a "(proj -lP'.*')"
-complete -c proj -s T -l template -a "(proj -lT'.*')"
+complete -c proj -s L -l list
+complete -c proj -s V -l visit
+complete -c proj -s C -l create
+complete -c proj -s R -l remove
+complete -c proj -s B -l backup
+complete -c proj -s E -l recover
+complete -c proj -s p -l project -a "(proj -lP'.*')"
+complete -c proj -s t -l template -a "(proj -lT'.*')"
