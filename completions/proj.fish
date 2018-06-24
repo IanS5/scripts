@@ -6,5 +6,5 @@ complete -c proj -s C -l create
 complete -c proj -s R -l remove
 complete -c proj -s B -l backup
 complete -c proj -s E -l recover
-complete -c proj -s p -l project -a "(proj -lP'.*')"
-complete -c proj -s t -l template -a "(proj -lT'.*')"
+complete -c proj -s p -l project -a "(proj -Lp'.*')"
+complete -c proj -s t -l template -a "(proj -Lt'.*')"
