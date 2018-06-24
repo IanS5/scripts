@@ -1,8 +1,7 @@
 #!/usr/bin/bash
 # proj
 #
-# Usage: proj [-lcrbe] [-T <TEMPLATE>] [-P <PROJECT>]
-#        proj cd <PROJECT>
+# Usage: proj [options]
 #        proj --help
 #
 # A simple project manager script.
@@ -10,12 +9,13 @@
 # Options:
 #   -h, --help
 #   -T, --template=<TEMPLATE>  select the template named TEMPLATE
-#   -P, --project=<PROJECT>    select the project named TEMPLATE
+#   -P, --project=<PROJECT>    select the project named PROJECT
 #   -l, --list                 list all selected resources, <PROJECT> and <TEMPLATE> or considered RegExp(s)
 #   -c, --create               create the selected resources
 #   -r, --remove               remove the selected resources
 #   -b, --backup               make a compressed copy of the selected resources
 #   -e, --restore              restore from a compressed copy of the selected resources
+#   -v, --visit                visit a project or template's directory in a subshell
 
 
 PROJ_BACKUP_BLOCKSIZE=10K
@@ -302,31 +302,6 @@ EOF
     chmod +x "$PROJ_BASE_DIR/templates/$name/PROJINIT"
 }
 
-proj::projects() {
-    case "$1" in
-        rec | reco | recov | recover)
-            proj::backup::recover project "$2"
-            ;;
-	    c | cr | cre | crea | creat | create)
-            proj::projects::create "$2" "$3"
-            ;;
-        r | re | rem | remov | remove | rm)
-            proj::binary-query "Are you sure you want to delete '$2'?" || exit
-            proj::backup::backup project "$2"
-            rm -r "$PROJ_PROJECT_DIR/$2"
-            ;;
-        b | ba | bac | back | backu | backup | bak)
-            proj::backup::backup project "$2"
-            ;;
-        f | fi | fin | find)
-            proj::projects::list | grep -s -- "$2"
-            ;;
-        *)
-            proj::projects::list | grep -s -- "$1"
-            ;;
-    esac
-}
-
 proj::projects::remove() {
     local project="$1"
 
@@ -363,7 +338,25 @@ proj::projects::cd() {
     export PROJ_CURRENT_PROJECT_NAME="$project"
 
     export fish_history="proj_project_$hash"
-    export HISTFILE="$HOME/.proj/.hist/$hash"
+    export HISTFILE="$HOME/.proj/.hist/project.$hash"
+
+    clear
+    exec $SHELL
+}
+
+proj::templates::cd() {
+    local template="$1"
+
+    if [[ ! -d "$PROJ_PROJECT_DIR/$template" ]]; then exit 1; fi
+    
+    cd "$PROJ_PROJECT_DIR/$template"
+    
+    hash=$(echo "$template" | md5sum | awk '{print $1}')
+    export PROJ_CURRENT_TEMPLATE_BASE="$PROJ_PROJECT_DIR/$template"
+    export PROJ_CURRENT_TEMPLATE_NAME="$template"
+
+    export fish_history="proj_project_$hash"
+    export HISTFILE="$HOME/.proj/.hist/template.$hash"
 
     clear
     exec $SHELL
@@ -387,7 +380,7 @@ source docopts.sh --auto "$@"
 project="${ARGS[--project]}"
 template="${ARGS[--template]}"
 
-if [ -n "$project" ]; then
+if [ -n "$project" ] || arg --project; then
     if arg '--list'; then
         proj::projects::list | grep -P -- "$project"
     fi
@@ -404,12 +397,12 @@ if [ -n "$project" ]; then
         proj::backup::backup 'project' "$project"
     fi
 
-    if arg '--restore'; then
-        proj::backup::recover 'project' "$project"
+    if arg '--visit'; then
+        proj::projects::cd "$project"
     fi
 fi
 
-if [ -n "$template" ]; then
+if [ -n "$template" ] || arg --template; then
     if arg '--list'; then
         proj::templates::list | grep -P -- "$template"
     fi
@@ -429,8 +422,8 @@ if [ -n "$template" ]; then
     if arg '--restore'; then
         proj::templates::recover 'template' "$template"
     fi
-fi
 
-if arg 'cd'; then
-    proj::projects::cd "$(arg '<PROJECT>')"
+    if arg '--visit'; then
+        proj::templates::cd "$template"
+    fi
 fi
