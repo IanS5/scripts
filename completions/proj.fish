@@ -28,8 +28,8 @@ function __ians5_proj_cursor_on_template
 end
 
 complete -c proj -x -n "not __ians5_proj_has_project; and not __ians5_proj_has_template" -a "-P -T"
-complete -c proj -f -n "__ians5_proj_has_project; and not __ians5_proj_cursor_on_template" -a "(./proj.sh -lP)"
-complete -c proj -f -n "__ians5_proj_has_template; or __ians5_proj_cursor_on_template" -a "(./proj.sh -lT)"
+complete -c proj -f -n "__ians5_proj_has_project; and not __ians5_proj_cursor_on_template" -a "(proj.sh -lP)"
+complete -c proj -f -n "__ians5_proj_has_template; or __ians5_proj_cursor_on_template" -a "(proj.sh -lT)"
 
 complete -c proj -s l -l list
 complete -c proj -s v -l visit
