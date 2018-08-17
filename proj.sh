@@ -27,6 +27,7 @@ true ${PROJ_BACKUP_DIR:="$PROJ_BASE_DIR/backups"}
 true ${PROJ_PROJECT_DIR:="$PROJ_BASE_DIR/projects"}
 true ${PROJ_TEMPLATE_DIR:="$PROJ_BASE_DIR/templates"}
 
+
 proj::load::begin() {
     export PROJ_LOADING_LENGTH=$1
     if [[ -z "$PROJ_LOADING_LENGTH" ]]; then
@@ -52,8 +53,8 @@ proj::load::render_percent() {
     local frames_count=${#frames[@]}
     local index=`simplify "trunc($percent * $PROJ_LOADING_LENGTH)"`
     local partial=`simplify "round(frac($percent * $PROJ_LOADING_LENGTH) * ($frames_count - 1))"`
-    printf "  %5.2d%%  \u2590" `simplify "$percent * 100"`
 
+    printf "  %5.2d%%  \u2590" `simplify "$percent * 100"`
     test "$index" -gt 1 && printf "${frames[-1]}%.0s" `seq $index`
 
     if [[ $index -ne $PROJ_LOADING_LENGTH ]]; then
@@ -67,6 +68,13 @@ proj::load::render_percent() {
     printf "\e[49m"
     test $index -ne $PROJ_LOADING_LENGTH && printf " %.0s" `seq $(expr $PROJ_LOADING_LENGTH - $index)`
     printf "\e[0m\u258C\r"
+}
+
+proj::backup::restic() {
+    local project="$1"
+    restic -r "$PROJ_RESTIC_REPO" \
+        backup "$PROJ_PROJECT_DIR/$project"
+
 }
 
 proj::backup::compress() {
@@ -102,15 +110,20 @@ proj::backup::decompress() {
 }
 
 proj::backup::sizeof-archive() {
-    expr $(xz -l $1 | awk 'NR == 2 { printf "%s%.1s\n", $5, $6 }' | tr -d ',' | numfmt --from iec) / $(numfmt --from iec $PROJ_BACKUP_BLOCKSIZE)
+    local archive="$1"
+    local archive_bytes=$(xz -l $archive | awk 'NR == 2 { printf "%s%.1s\n", $5, $6 }' | tr -d ',' | numfmt --from iec)
+    local block_bytes=$(numfmt --from iec $PROJ_BACKUP_BLOCKSIZE)
+
+    printf '%d' $((archive_bytes / block_bytes))
 }
 
 proj::backup::sizeof() {
-    du -hbc -B$PROJ_BACKUP_BLOCKSIZE --apparent-size $1 | awk '$2 == "total" { print $1 }'
+    local folder=$1
+    du -hbc -B$PROJ_BACKUP_BLOCKSIZE --apparent-size $archive | awk '$2 == "total" { print $1 }'
 }
 
 proj::fail() {
-    echo "proj: $1"
+    echo "[proj] $1"
     exit 1
 }
 
@@ -137,8 +150,8 @@ proj::leave() {
 }
 
 proj::backup::recover() {
-    resource="$1"
-    name="$2"
+    local resource="$1"
+    local name="$2"
 
     case "$resource" in
         "project")
@@ -237,8 +250,8 @@ proj::templates::list() {
 
 
 proj::projects::create() {
-    name="$1"
-    template="$2"
+    local name="$1"
+    local template="$2"
 
     if [ -z "$template" ]; then
         template="scratch"
@@ -279,7 +292,7 @@ proj::projects::create() {
 }
 
 proj::templates::create() {
-    name="$1"
+    local name="$1"
 
     if [ -z "$name" ]; then
         echo "please specify a template name"
