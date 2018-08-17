@@ -4,7 +4,7 @@
 # Usage: proj [options] [<NAME>] [<TEMPLATE>]
 #        proj --help
 #
-# A simple project manager script.
+# A simple project management script.
 #
 # Options:
 #   -h, --help
@@ -20,33 +20,19 @@
 
 PROJ_BACKUP_BLOCKSIZE=10K
 
-if [[ -z "$PROJ_BASE_DIR" ]]; then
-    PROJ_BASE_DIR="$HOME/.proj"
-fi
-
-if [[ -z "$PROJ_HIST_DIR" ]]; then
-    PROJ_HIST_DIR="$PROJ_BASE_DIR/.hist"
-fi
-
-if [[ -z "$PROJ_BACKUP_DIR" ]]; then
-    PROJ_BACKUP_DIR="$PROJ_BASE_DIR/backups"
-fi
-
-if [[ -z "$PROJ_PROJECT_DIR" ]]; then
-    PROJ_PROJECT_DIR="$PROJ_BASE_DIR/projects"
-fi
-
-if [[ -z "$PROJ_TEMPLATE_DIR" ]]; then
-    PROJ_TEMPLATE_DIR="$PROJ_BASE_DIR/templates"
-fi
-
+# Set default directories.
+true ${PROJ_BASE_DIR:="$HOME/.proj"}
+true ${PROJ_HIST_DIR:="$PROJ_BASE_DIR/.hist"}
+true ${PROJ_BACKUP_DIR:="$PROJ_BASE_DIR/backups"}
+true ${PROJ_PROJECT_DIR:="$PROJ_BASE_DIR/projects"}
+true ${PROJ_TEMPLATE_DIR:="$PROJ_BASE_DIR/templates"}
 
 proj::load::begin() {
     export PROJ_LOADING_LENGTH=$1
     if [[ -z "$PROJ_LOADING_LENGTH" ]]; then
         PROJ_LOADING_LENGTH=`expr $(tput cols) / 2`;
     fi
-    
+
     tput civis -- invisible
     echo
     echo
@@ -61,14 +47,15 @@ proj::load::end() {
 }
 
 proj::load::render_percent() {
+    local percent="$1"
     local frames=('▏' '▎' '▍' '▌' '▋' '▊' '▉' '█')
     local frames_count=${#frames[@]}
-    local index=$(echo "trunc($1 * $PROJ_LOADING_LENGTH)" | simplify)
-    local partial=$(echo "round(frac($1 * $PROJ_LOADING_LENGTH) * ($frames_count - 1))" | simplify)
-    printf "  %3d%%  \u2590" "$(echo "round($1 * 100)" | simplify)"
-    if [[ "$index" -gt 1 ]]; then
-        printf "${frames[-1]}%.0s" `seq $index`
-    fi
+    local index=`simplify "trunc($percent * $PROJ_LOADING_LENGTH)"`
+    local partial=`simplify "round(frac($percent * $PROJ_LOADING_LENGTH) * ($frames_count - 1))"`
+    printf "  %5.2d%%  \u2590" `simplify "$percent * 100"`
+
+    test "$index" -gt 1 && printf "${frames[-1]}%.0s" `seq $index`
+
     if [[ $index -ne $PROJ_LOADING_LENGTH ]]; then
         if [[ "$index" -gt 0 ]]; then
             printf "${frames[$partial]}"
@@ -76,10 +63,9 @@ proj::load::render_percent() {
     else
         printf "${frames[-1]}"
     fi
+
     printf "\e[49m"
-    if [[ $index -ne $PROJ_LOADING_LENGTH ]]; then
-        printf " %.0s" `seq $(expr $PROJ_LOADING_LENGTH - $index)`
-    fi
+    test $index -ne $PROJ_LOADING_LENGTH && printf " %.0s" `seq $(expr $PROJ_LOADING_LENGTH - $index)`
     printf "\e[0m\u258C\r"
 }
 
@@ -88,10 +74,17 @@ proj::backup::compress() {
     pushd "$1/.." > /dev/null
     proj::load::begin
 
-    XZ_OPTS='-9' tar --exclude-vcs-ignores --checkpoint=1 --xz --create --checkpoint-action=exec='printf "%s\n" "$(simplify "$TAR_CHECKPOINT/$precompressed")"' --file "$2" "./$(basename $1)" |
+    XZ_OPTS='-9' tar \
+        --exclude-vcs-ignores \
+        --checkpoint=1 \
+        --xz \
+        --create \
+        --checkpoint-action=exec='printf "%s\n" "$(simplify "$TAR_CHECKPOINT/$precompressed")"' \
+        --file "$2" "./$(basename $1)" | \
     while read -r line || [[ -n "$line" ]]; do
         proj::load::render_percent $line
     done
+
     proj::load::end
     popd > /dev/null
 }
@@ -155,7 +148,7 @@ proj::backup::recover() {
         "template")
             target="$PROJ_BACKUP_DIR/$name.template.latest.bak"
             directory="$PROJ_TEMPLATE_DIR/$name"
-            ;; 
+            ;;
         *)
             proj::fail "Please specify 'project' or 'tempate' as a recover target."
             ;;
@@ -175,12 +168,12 @@ proj::backup::recover() {
 
     proj::backup::decompress "$target" "$directory"
 }
- 
+
 proj::backup::backup() {
     resource="$1"
     name="$2"
 
-    case "$resource" in 
+    case "$resource" in
         "project")
             proj::projects::visit
             ;;
@@ -198,12 +191,12 @@ proj::backup::backup() {
     if [[ ! -d "./$name" ]]; then
         proj::fail "could not find '$name'"
     fi
-    
+
     latest="$PROJ_BACKUP_DIR/$name.$resource.latest.bak"
     backup="$PROJ_BACKUP_DIR/$name.$resource.`date +%s`.bak"
-    
+
     proj::backup::compress "./$name" "$backup"
-    
+
     rm -f "$latest"
     ln -s "$backup" "$latest"
 
@@ -243,10 +236,10 @@ proj::templates::list() {
 }
 
 
-proj::projects::create() {    
+proj::projects::create() {
     name="$1"
     template="$2"
-    
+
     if [ -z "$template" ]; then
         template="scratch"
     fi
@@ -257,7 +250,7 @@ proj::projects::create() {
         template_dir=/etc/proj/templates/"$template"
     else
         echo "no template named '$template'"
-        echo "do \"$0 --template --create $template\" to create it" 
+        echo "do \"$0 --template --create $template\" to create it"
         exit 1
     fi
 
@@ -267,13 +260,13 @@ proj::projects::create() {
     fi
 
     proj::projects::visit
-    
+
     mkdir -p "$name" && cd "$name"
     cp -frp $template_dir/* "."
 
     export TEMPLATE=$template
     export PROJECT=$name
-    
+
     sh ./PROJINIT
     response_code=$?
     rm ./PROJINIT
@@ -330,9 +323,9 @@ proj::projects::cd() {
     local project="$1"
 
     if [[ ! -d "$PROJ_PROJECT_DIR/$project" ]]; then exit 1; fi
-    
+
     cd "$PROJ_PROJECT_DIR/$project"
-    
+
     hash=$(echo "$project" | md5sum | awk '{print $1}')
     export PROJ_CURRENT_PROJECT_BASE="$PROJ_PROJECT_DIR/$project"
     export PROJ_CURRENT_PROJECT_NAME="$project"
@@ -348,9 +341,9 @@ proj::templates::cd() {
     local template="$1"
 
     if [[ ! -d "$PROJ_PROJECT_DIR/$template" ]]; then exit 1; fi
-    
+
     cd "$PROJ_PROJECT_DIR/$template"
-    
+
     hash=$(echo "$template" | md5sum | awk '{print $1}')
     export PROJ_CURRENT_TEMPLATE_BASE="$PROJ_PROJECT_DIR/$template"
     export PROJ_CURRENT_TEMPLATE_NAME="$template"
