@@ -8,7 +8,7 @@ function __ians5_proj_has_project
 end
 
 function __ians5_proj_has_project_name
-    if test -z (commandline -o | tail -n1 | grep -o -- '\-')
+    if test -z (commandline -o | tail -n2 | tr -d '\n' | grep -- '\-')
         return 0
     end
     return 1
@@ -22,7 +22,7 @@ function __ians5_proj_has_template
 end
 
 function __ians5_proj_cursor_on_template
-    if not __ians5_proj_has_project; or not __ians5_proj_has_project_name
+    if not __ians5_proj_has_project; or not __ians5_proj_has_project_name;
         return 1
     end
 end
